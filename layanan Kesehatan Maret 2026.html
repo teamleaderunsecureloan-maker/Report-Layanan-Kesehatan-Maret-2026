@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Dashboard Status Laporan UB - Layanan Kesehatan Maret 2026</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+<style>
+body {padding:20px; background:#f8fafc; color:#0f172a}
+.card {border-radius:12px}
+.small-note{font-size:0.9rem;color:#475569}
+.branch-list{max-height:380px; overflow:auto}
+.btn-compact{padding:6px 10px;font-size:0.9rem}
+</style>
+</head>
+<body>
+<div class="container">
+<div class="d-flex align-items-center mb-3">
+<h3 class="me-auto">Status Laporan UB — Layanan Kesehatan (Jan 2026)</h3>
+<div class="small-note">Summary Review Update 12 Maret 2026</div>
+</div>
+
+<div class="row g-3">
+<div class="col-lg-5">
+<div class="card p-3 mb-3">
+<canvas id="pieChart" height="220"></canvas>
+</div>
+<div class="card p-3">
+<canvas id="barChart" height="220"></canvas>
+</div>
+</div>
+
+<div class="col-lg-7">
+<div class="card p-3 mb-3">
+<div class="d-flex mb-2">
+<h5 class="mb-0">Kategori</h5>
+<div class="ms-auto small-note">Klik kategori untuk melihat daftar cabang</div>
+</div>
+<div class="row text-center gy-2 branch-summary">
+<div class="col-6">
+<button class="btn btn-outline-primary w-100" onclick="showCategory(0)">Belum Lapor<br><strong id="c0">0</strong></button>
+</div>
+<div class="col-6">
+<button class="btn btn-outline-warning w-100" onclick="showCategory(1)">Upload Dokumen saja<br><strong id="c1">0</strong></button>
+</div>
+<div class="col-6">
+<button class="btn btn-outline-secondary w-100" onclick="showCategory(2)">Lapor tanpa link<br><strong id="c2">0</strong></button>
+</div>
+<div class="col-6">
+<button class="btn btn-outline-danger w-100" onclick="showCategory(3)">Dokumentasi tidak sesuai<br><strong id="c3">0</strong></button>
+</div>
+<div class="col-12 mt-2">
+<button class="btn btn-outline-success w-100" onclick="showCategory(4)">Lapor lengkap & sesuai<br><strong id="c4">0</strong></button>
+</div>
+</div>
+</div>
+
+<div class="card p-3">
+<div class="d-flex mb-2">
+<h5 class="mb-0">Daftar Cabang</h5>
+<div class="ms-auto">
+<input id="filterInput" class="form-control form-control-sm" placeholder="Cari cabang..." style="width:220px" oninput="filterList()">
+</div>
+</div>
+
+<div class="branch-list mt-2">
+<ul id="branchList" class="list-group"></ul>
+</div>
+
+<div class="d-flex gap-2 mt-3">
+<button class="btn btn-primary btn-compact" onclick="downloadCSV()">Download CSV</button>
+<button class="btn btn-outline-secondary btn-compact" onclick="resetView()">Reset</button>
+</div>
+</div>
+</div>
+</div>
+
+<footer class="small-note mt-3">Generated for review meeting. Data source: Laporan UB – November 2025.</footer>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.3.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
+<script>
+Chart.register(ChartDataLabels);
+
+const categories = [
+{ key: 'Belum Lapor', items: ['KC Solo','KC Pekan Baru','KC Jember','KC Kediri','KC Semarang','KC Garut','KC Surapaticore','KC Denpasar','KC Manado'], color: '#0ea5a4' },
+{ key: 'Hanya Upload Dokumentasi saja', items: ['KC Semarang'], color: '#f59e0b' },
+{ key: 'Lapor tanpa link dokumentasi', items: ['NIHIL'], color: '#6b7280' },
+{ key: 'Report dokumentasi tidak sesuai', items: ['NIHIL'], color: '#ef4444' },
+{ key: 'Lapor lengkap & sesuai', items: ['KC Medan','KC Lampung','KC Madiun','KC Diponegoro','KC Makassar','KC Surabaya','KC Sukabumi'], color: '#16a34a' }
+];
+
+
+const counts = categories.map(c => c.items.length);
+const total = counts.reduce((a,b)=>a+b,0);
+
+counts.forEach((v,i)=>document.getElementById('c'+i).innerText = v);
+
+const pieCtx = document.getElementById('pieChart');
+new Chart(pieCtx, {
+type: 'doughnut',
+data: {
+labels: categories.map(c=>c.key),
+datasets: [{
+data: counts,
+backgroundColor: categories.map(c=>c.color)
+}]
+},
+options:{
+plugins:{
+legend:{position:'right'},
+datalabels:{
+color:'#fff',
+formatter:(value)=>((value/total)*100).toFixed(1)+'%'
+}
+}
+}
+});
+
+const barCtx = document.getElementById('barChart');
+new Chart(barCtx, {
+type: 'bar',
+data: {
+labels: categories.map(c=>c.key),
+datasets:[{label:'Jumlah Cabang', data:counts, backgroundColor:categories.map(c=>c.color)}]
+},
+options:{
+scales:{y:{beginAtZero:true}},
+plugins:{
+legend:{display:false},
+datalabels:{
+anchor:'end',
+align:'top',
+color:'#0f172a',
+font:{weight:'bold'},
+formatter:(v)=>v
+}
+}
+}
+});
+
+const branchList = document.getElementById('branchList');
+function showCategory(idx){
+branchList.innerHTML = '';
+const arr = categories[idx].items;
+if(!arr.length){ branchList.innerHTML = '<li class="list-group-item">(Tidak ada cabang)</li>'; return }
+arr.forEach(b=>{
+const li = document.createElement('li');
+li.className = 'list-group-item d-flex justify-content-between align-items-center';
+li.innerHTML = `<div><strong>${b}</strong></div><div class="small-note">${categories[idx].key}</div>`;
+branchList.appendChild(li);
+});
+}
+
+function resetView(){
+branchList.innerHTML='';
+categories.forEach(cat=>{
+cat.items.forEach(b=>{
+const li = document.createElement('li');
+li.className = 'list-group-item d-flex justify-content-between align-items-center';
+li.innerHTML = `<div><strong>${b}</strong></div><div class="small-note">${cat.key}</div>`;
+branchList.appendChild(li);
+});
+});
+}
+
+function filterList(){
+const q = document.getElementById('filterInput').value.toLowerCase();
+Array.from(branchList.children).forEach(li=>{
+const txt = li.innerText.toLowerCase();
+li.style.display = txt.includes(q) ? '' : 'none';
+});
+}
+
+function downloadCSV(){
+const rows = [['Branch Name','Status']];
+categories.forEach(cat=>cat.items.forEach(b=>rows.push([b,cat.key])));
+const csv = rows.map(r=>r.map(c=>'"'+String(c).replace(/"/g,'""')+'"').join(',')).join('\n');
+const blob = new Blob([csv],{type:'text/csv'});
+const url = URL.createObjectURL(blob);
+const a = document.createElement('a'); a.href = url; a.download = 'report_status_ub_nov2025.csv'; a.click(); URL.revokeObjectURL(url);
+}
+
+resetView();
+</script>
+</body>
+</html>
+
